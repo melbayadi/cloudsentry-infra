@@ -1,0 +1,7 @@
+aws_region        = "us-west-2"
+environment       = "dev"
+vpc_cidr          = "10.0.0.0/16"
+api_image         = "123456789012.dkr.ecr.us-west-2.amazonaws.com/cloudsentry-dev-api:latest"
+db_username       = "cloudsentry"
+db_password       = "CHANGE_ME"
+anthropic_api_key = "CHANGE_ME"
