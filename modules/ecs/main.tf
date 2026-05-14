@@ -9,16 +9,46 @@ resource "aws_ecs_cluster" "main" {
 resource "aws_security_group" "alb" {
   name   = "${var.name_prefix}-alb-sg"
   vpc_id = var.vpc_id
-  ingress { from_port = 80;  to_port = 80;  protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 443; to_port = 443; protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
-  egress  { from_port = 0;   to_port = 0;   protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_security_group" "api" {
   name   = "${var.name_prefix}-api-sg"
   vpc_id = var.vpc_id
-  ingress { from_port = 8000; to_port = 8000; protocol = "tcp"; security_groups = [aws_security_group.alb.id] }
-  egress  { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_lb" "main" {
@@ -35,13 +65,19 @@ resource "aws_lb_target_group" "api" {
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
-  health_check { path = "/docs"; interval = 30; healthy_threshold = 2 }
+
+  health_check {
+    path              = "/docs"
+    interval          = 30
+    healthy_threshold = 2
+  }
 }
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.api.arn
@@ -65,12 +101,12 @@ resource "aws_ecs_task_definition" "api" {
   container_definitions = jsonencode([{
     name  = "api"
     image = var.api_image
-    portMappings = [{ containerPort = 8000; protocol = "tcp" }]
+    portMappings = [{ containerPort = 8000, protocol = "tcp" }]
     environment = [
-      { name = "DATABASE_URL";       value = var.db_url },
-      { name = "REDIS_URL";          value = var.redis_url },
-      { name = "ENVIRONMENT";        value = var.environment },
-      { name = "ANTHROPIC_API_KEY";  value = var.anthropic_api_key },
+      { name = "DATABASE_URL",      value = var.db_url },
+      { name = "REDIS_URL",         value = var.redis_url },
+      { name = "ENVIRONMENT",       value = var.environment },
+      { name = "ANTHROPIC_API_KEY", value = var.anthropic_api_key },
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -106,7 +142,7 @@ resource "aws_iam_role" "ecs_execution" {
   name = "${var.name_prefix}-ecs-exec-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{ Effect = "Allow"; Principal = { Service = "ecs-tasks.amazonaws.com" }; Action = "sts:AssumeRole" }]
+    Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
   })
 }
 
@@ -119,7 +155,7 @@ resource "aws_iam_role" "ecs_task" {
   name = "${var.name_prefix}-ecs-task-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{ Effect = "Allow"; Principal = { Service = "ecs-tasks.amazonaws.com" }; Action = "sts:AssumeRole" }]
+    Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
   })
 }
 
@@ -129,9 +165,9 @@ resource "aws_iam_role_policy" "ecs_task_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["ce:GetCostAndUsage", "ce:GetCostForecast", "ce:GetAnomalies"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["config:GetComplianceDetailsByConfigRule", "config:DescribeConfigRules"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["cloudtrail:LookupEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["ce:GetCostAndUsage", "ce:GetCostForecast", "ce:GetAnomalies"], Resource = "*" },
+      { Effect = "Allow", Action = ["config:GetComplianceDetailsByConfigRule", "config:DescribeConfigRules"], Resource = "*" },
+      { Effect = "Allow", Action = ["cloudtrail:LookupEvents"], Resource = "*" },
     ]
   })
 }

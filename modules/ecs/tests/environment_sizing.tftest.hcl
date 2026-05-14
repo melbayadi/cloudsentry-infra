@@ -30,12 +30,12 @@ run "prod_task_gets_full_cpu_and_memory" {
   }
 
   assert {
-    condition     = aws_ecs_task_definition.api.cpu == 1024
+    condition     = aws_ecs_task_definition.api.cpu == "1024"
     error_message = "prod ECS task must request 1024 CPU units, got ${aws_ecs_task_definition.api.cpu}"
   }
 
   assert {
-    condition     = aws_ecs_task_definition.api.memory == 2048
+    condition     = aws_ecs_task_definition.api.memory == "2048"
     error_message = "prod ECS task must request 2048 MiB memory, got ${aws_ecs_task_definition.api.memory}"
   }
 }
@@ -48,12 +48,12 @@ run "dev_task_gets_reduced_cpu_and_memory" {
   }
 
   assert {
-    condition     = aws_ecs_task_definition.api.cpu == 512
+    condition     = aws_ecs_task_definition.api.cpu == "512"
     error_message = "dev ECS task must request 512 CPU units, got ${aws_ecs_task_definition.api.cpu}"
   }
 
   assert {
-    condition     = aws_ecs_task_definition.api.memory == 1024
+    condition     = aws_ecs_task_definition.api.memory == "1024"
     error_message = "dev ECS task must request 1024 MiB memory, got ${aws_ecs_task_definition.api.memory}"
   }
 }
