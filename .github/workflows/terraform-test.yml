@@ -1,4 +1,4 @@
-name: Terraform Module Tests
+name: Terraform Tests & Lint
 
 on:
   push:
@@ -7,16 +7,20 @@ on:
     branches: ["main"]
 
 jobs:
-  test:
-    name: terraform test
+  # ---------------------------------------------------------------------------
+  # Unit tests for individual modules (no AWS credentials required)
+  # ---------------------------------------------------------------------------
+  module-tests:
+    name: terraform test (${{ matrix.module }})
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
         module:
           - modules/ecs
           - modules/rds
+          - modules/vpc
+          - modules/redis
 
     steps:
       - uses: actions/checkout@v4
@@ -27,16 +31,39 @@ jobs:
           terraform_version: "~> 1.8"
 
       - name: terraform init
-        run: terraform init
+        run: terraform init -no-color
         working-directory: ${{ matrix.module }}
 
       - name: terraform test
-        # No AWS credentials needed — tests use mock_provider "aws"
-        run: terraform test
+        run: terraform test -no-color
         working-directory: ${{ matrix.module }}
 
+  # ---------------------------------------------------------------------------
+  # Integration test: root module wiring (no AWS credentials required)
+  # ---------------------------------------------------------------------------
+  root-test:
+    name: terraform test (root)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.8"
+
+      - name: terraform init
+        run: terraform init -backend=false -no-color
+
+      - name: terraform test
+        run: terraform test -no-color
+
+  # ---------------------------------------------------------------------------
+  # Formatting and syntax validation
+  # ---------------------------------------------------------------------------
   lint:
-    name: terraform validate + fmt
+    name: fmt + validate
     runs-on: ubuntu-latest
 
     steps:
@@ -48,10 +75,54 @@ jobs:
           terraform_version: "~> 1.8"
 
       - name: terraform fmt check
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive -no-color
 
       - name: terraform init (root)
-        run: terraform init -backend=false
+        run: terraform init -backend=false -no-color
 
-      - name: terraform validate (root)
-        run: terraform validate
+      - name: terraform validate
+        run: terraform validate -no-color
+
+  # ---------------------------------------------------------------------------
+  # tflint — catches invalid resource arguments before apply
+  # ---------------------------------------------------------------------------
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.52.0
+
+      - name: tflint init
+        run: tflint --init
+
+      - name: tflint
+        run: tflint --recursive --format compact
+
+  # ---------------------------------------------------------------------------
+  # Checkov — security and compliance static analysis
+  # Runs in soft-fail mode so findings are reported without blocking CI
+  # while the baseline is established. Remove soft_fail once known issues
+  # (HTTP listener, plaintext secrets in env vars, missing Redis egress)
+  # are remediated.
+  # ---------------------------------------------------------------------------
+  checkov:
+    name: checkov
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+          download_external_modules: false
